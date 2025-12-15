@@ -1,4 +1,4 @@
-name: Build Arm64 (KTS Fix)
+name: Build Arm64 (Final Fix)
 on: [workflow_dispatch]
 
 jobs:
@@ -17,21 +17,26 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Hack KTS Signing Config
+    - name: Create Dummy Key & Hack Build
       run: |
-        # 1. 进入目录
-        cd simple_live_app/android/app
+        # 1. 进入 android 目录
+        cd simple_live_app/android
         
-        # 2. 确认文件存在 (调试用)
-        ls -la build.gradle.kts
+        # 【核心修复】创建一个假的 key.properties
+        # 这样 build.gradle.kts 读取变量时就不会报 null 错误了
+        echo "storePassword=123456" > key.properties
+        echo "keyPassword=123456" >> key.properties
+        echo "keyAlias=key0" >> key.properties
+        echo "storeFile=key.jks" >> key.properties
         
-        # 3. 魔法修改 (针对 Kotlin DSL)
-        # 解释：找到包含 "signingConfig" 的行，把行内的 "release" 替换成 "debug"
-        # 原文通常是: signingConfig = signingConfigs.getByName("release")
-        # 改后变成: signingConfig = signingConfigs.getByName("debug")
+        # 2. 进入 app 目录修改构建脚本
+        cd app
+        
+        # 【双重保险】
+        # 将 Release 签名配置强行替换为 Debug 签名
         sed -i '/signingConfig/s/release/debug/g' build.gradle.kts
         
-        echo "=== Hack Complete: Switched Release to Debug signing ==="
+        echo "=== Bypass Signing Configuration Complete ==="
 
     - name: Build APK
       run: |
@@ -41,5 +46,5 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: simple-live-arm64-kts
+        name: simple-live-arm64-final
         path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
