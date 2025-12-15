@@ -1,13 +1,10 @@
-name: Build Arm64 (Hack Sign)
-on: [workflow_dispatch] # 手动触发
+name: Build Arm64 (Auto Fix)
+on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./simple_live_app # 全局指定在 simple_live_app 目录下运行
-
+    
     steps:
     - uses: actions/checkout@v4
 
@@ -20,15 +17,26 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Hack Signing Config & Build
+    - name: Locate and Hack build.gradle
       run: |
-        # 【关键修正】路径改为 app/build.gradle，因为工作目录是 simple_live_app
-        sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle
+        # 1. 打印目录结构以防万一 (调试用)
+        echo "=== Current Directory Structure ==="
+        ls -R simple_live_app/android/app || echo "Directory not found!"
+        
+        # 2. 暴力查找并修改 build.gradle (防止路径写错)
+        # 只要文件名是 build.gradle 且路径包含 app/build.gradle 就强制修改
+        find . -name "build.gradle" | grep "app/build.gradle" | xargs sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g'
+        
+        echo "=== Hack Complete ==="
 
+    - name: Build APK
+      run: |
+        # 3. 显式进入目录进行编译
+        cd simple_live_app
         flutter pub get
         flutter build apk --release --target-platform android-arm64
 
     - uses: actions/upload-artifact@v4
       with:
-        name: simple-live-arm64-hacked
+        name: simple-live-arm64-final
         path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
