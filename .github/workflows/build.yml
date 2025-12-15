@@ -1,4 +1,4 @@
-name: Build Arm64 (Auto Fix)
+name: Build Arm64 (KTS Fix)
 on: [workflow_dispatch]
 
 jobs:
@@ -17,26 +17,29 @@ jobs:
       with:
         channel: 'stable'
 
-    - name: Locate and Hack build.gradle
+    - name: Hack KTS Signing Config
       run: |
-        # 1. 打印目录结构以防万一 (调试用)
-        echo "=== Current Directory Structure ==="
-        ls -R simple_live_app/android/app || echo "Directory not found!"
+        # 1. 进入目录
+        cd simple_live_app/android/app
         
-        # 2. 暴力查找并修改 build.gradle (防止路径写错)
-        # 只要文件名是 build.gradle 且路径包含 app/build.gradle 就强制修改
-        find . -name "build.gradle" | grep "app/build.gradle" | xargs sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g'
+        # 2. 确认文件存在 (调试用)
+        ls -la build.gradle.kts
         
-        echo "=== Hack Complete ==="
+        # 3. 魔法修改 (针对 Kotlin DSL)
+        # 解释：找到包含 "signingConfig" 的行，把行内的 "release" 替换成 "debug"
+        # 原文通常是: signingConfig = signingConfigs.getByName("release")
+        # 改后变成: signingConfig = signingConfigs.getByName("debug")
+        sed -i '/signingConfig/s/release/debug/g' build.gradle.kts
+        
+        echo "=== Hack Complete: Switched Release to Debug signing ==="
 
     - name: Build APK
       run: |
-        # 3. 显式进入目录进行编译
         cd simple_live_app
         flutter pub get
         flutter build apk --release --target-platform android-arm64
 
     - uses: actions/upload-artifact@v4
       with:
-        name: simple-live-arm64-final
+        name: simple-live-arm64-kts
         path: simple_live_app/build/app/outputs/flutter-apk/app-release.apk
