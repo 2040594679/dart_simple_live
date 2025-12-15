@@ -1,12 +1,12 @@
 name: Build Arm64 (Hack Sign)
-on: [workflow_dispatch]
+on: [workflow_dispatch] # 手动触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./simple_live_app
+        working-directory: ./simple_live_app # 全局指定在 simple_live_app 目录下运行
 
     steps:
     - uses: actions/checkout@v4
@@ -22,8 +22,7 @@ jobs:
 
     - name: Hack Signing Config & Build
       run: |
-        # 【关键魔法步骤】使用 sed 命令修改 build.gradle
-        # 将 Release 签名配置强行替换为 Debug 签名配置
+        # 【关键修正】路径改为 app/build.gradle，因为工作目录是 simple_live_app
         sed -i 's/signingConfig signingConfigs.release/signingConfig signingConfigs.debug/g' android/app/build.gradle
 
         flutter pub get
